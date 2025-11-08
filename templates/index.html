@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prescribed Burn Project AI Agent</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        
+        .search-box {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+        }
+        
+        .search-form {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .search-form input {
+            flex: 1;
+            padding: 15px;
+            font-size: 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            outline: none;
+        }
+        
+        .search-form input:focus {
+            border-color: #667eea;
+        }
+        
+        .search-form button {
+            padding: 15px 40px;
+            font-size: 16px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        
+        .search-form button:hover {
+            background: #5568d3;
+        }
+        
+        .search-form button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            background: white;
+            border-radius: 10px;
+            display: none;
+        }
+        
+        .loading.active {
+            display: block;
+        }
+        
+        .results {
+            display: none;
+        }
+        
+        .results.active {
+            display: block;
+        }
+        
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .card h2 {
+            color: #333;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .info-item {
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        
+        .info-item strong {
+            color: #667eea;
+            display: block;
+            margin-bottom: 5px;
+        }
+        
+        .forecast-period {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        
+        .forecast-period h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .alert {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 5px;
+        }
+        
+        .alert.warning {
+            background: #f8d7da;
+            border-left-color: #dc3545;
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔥 Prescribed Burn Project AI Agent</h1>
+            <p>Gather location-based data for prescribed burn planning</p>
+        </div>
+        
+        <div class="search-box">
+            <form class="search-form" id="searchForm">
+                <input 
+                    type="text" 
+                    id="cityInput" 
+                    placeholder="Enter city name (e.g., Denver, Colorado)" 
+                    required
+                >
+                <button type="submit" id="submitBtn">Analyze Location</button>
+            </form>
+        </div>
+        
+        <div class="loading" id="loading">
+            <h2>🔍 Analyzing location...</h2>
+            <p>Gathering weather, topography, fuel sources, and water data...</p>
+        </div>
+        
+        <div class="results" id="results"></div>
+    </div>
+    
+    <script>
+        const form = document.getElementById('searchForm');
+        const loading = document.getElementById('loading');
+        const results = document.getElementById('results');
+        const submitBtn = document.getElementById('submitBtn');
+        
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const city = document.getElementById('cityInput').value;
+            
+            loading.classList.add('active');
+            results.classList.remove('active');
+            results.innerHTML = '';
+            submitBtn.disabled = true;
+            
+            try {
+                const response = await fetch('/api/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ city })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                displayResults(data);
+            } catch (error) {
+                results.innerHTML = `<div class="card"><div class="error">Error: ${error.message}</div></div>`;
+                results.classList.add('active');
+            } finally {
+                loading.classList.remove('active');
+                submitBtn.disabled = false;
+            }
+        });
+        
+        function displayResults(data) {
+            let html = '';
+            
+            // Location Info
+            html += `
+                <div class="card">
+                    <h2>📍 Location Information</h2>
+                    <div class="info-item">
+                        <strong>Location:</strong> ${data.location.name}
+                    </div>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <strong>Latitude:</strong> ${data.location.latitude.toFixed(4)}
+                        </div>
+                        <div class="info-item">
+                            <strong>Longitude:</strong> ${data.location.longitude.toFixed(4)}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Weather Data
+            if (data.weather && !data.weather.error) {
+                html += `<div class="card"><h2>🌤️ Weather Forecast</h2>`;
+                data.weather.forecast.forEach(period => {
+                    html += `
+                        <div class="forecast-period">
+                            <h3>${period.name}</h3>
+                            <div class="info-grid">
+                                <div class="info-item">
+                                    <strong>Temperature:</strong> ${period.temperature}°${period.temperature_unit}
+                                </div>
+                                <div class="info-item">
+                                    <strong>Wind:</strong> ${period.wind_speed} ${period.wind_direction}
+                                </div>
+                                <div class="info-item">
+                                    <strong>Humidity:</strong> ${period.humidity}${typeof period.humidity === 'number' ? '%' : ''}
+                                </div>
+                            </div>
+                            <p style="margin-top: 10px;"><strong>Forecast:</strong> ${period.detailed_forecast}</p>
+                        </div>
+                    `;
+                });
+                html += `</div>`;
+            } else if (data.weather && data.weather.error) {
+                html += `<div class="card"><h2>🌤️ Weather Forecast</h2><div class="error">${data.weather.error}</div></div>`;
+            }
+            
+            // Topography
+            if (data.topography && !data.topography.error) {
+                html += `
+                    <div class="card">
+                        <h2>⛰️ Topography</h2>
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <strong>Elevation:</strong> ${data.topography.elevation_feet} ft (${data.topography.elevation_meters} m)
+                            </div>
+                            <div class="info-item">
+                                <strong>Terrain:</strong> ${data.topography.terrain_note}
+                            </div>
+                            <div class="info-item">
+                                <strong>Elevation Variation:</strong> ${data.topography.elevation_range_nearby} m nearby
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Fuel Sources
+            if (data.fuel_sources && !data.fuel_sources.error) {
+                html += `
+                    <div class="card">
+                        <h2>🌲 Fuel Sources</h2>
+                        <div class="info-item">
+                            <strong>Dominant Fuel Type:</strong> ${data.fuel_sources.dominant_fuel}
+                        </div>
+                        <div class="info-item">
+                            <strong>Total Areas Found:</strong> ${data.fuel_sources.total_areas}
+                        </div>
+                        <div class="info-item">
+                            <strong>Fuel Types:</strong>
+                            <ul style="margin-top: 5px; margin-left: 20px;">
+                                ${Object.entries(data.fuel_sources.fuel_types_found).map(([type, count]) => 
+                                    `<li>${type}: ${count} areas</li>`
+                                ).join('')}
+                            </ul>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Water Sources
+            if (data.water_sources && !data.water_sources.error) {
+                html += `
+                    <div class="card">
+                        <h2>💧 Water Sources</h2>
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <strong>Fire Hydrants:</strong> ${data.water_sources.fire_hydrants}
+                            </div>
+                            <div class="info-item">
+                                <strong>Total Water Sources:</strong> ${data.water_sources.total_water_sources}
+                            </div>
+                        </div>
+                        ${Object.keys(data.water_sources.water_bodies).length > 0 ? `
+                            <div class="info-item" style="margin-top: 15px;">
+                                <strong>Water Bodies:</strong>
+                                <ul style="margin-top: 5px; margin-left: 20px;">
+                                    ${Object.entries(data.water_sources.water_bodies).map(([type, count]) => 
+                                        `<li>${type}: ${count}</li>`
+                                    ).join('')}
+                                </ul>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+            
+            // Burn Assessment
+            if (data.burn_assessment) {
+                const hasWarnings = data.burn_assessment.concerns && 
+                    data.burn_assessment.concerns.some(c => c.includes('risk'));
+                
+                html += `
+                    <div class="card">
+                        <h2>⚠️ Burn Condition Assessment</h2>
+                        <div class="alert ${hasWarnings ? 'warning' : ''}">
+                            <strong>Concerns:</strong>
+                            <ul style="margin-top: 10px; margin-left: 20px;">
+                                ${data.burn_assessment.concerns.map(c => `<li>${c}</li>`).join('')}
+                            </ul>
+                        </div>
+                        <div class="info-item" style="margin-top: 15px;">
+                            <strong>Recommendation:</strong> ${data.burn_assessment.recommendation}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            results.innerHTML = html;
+            results.classList.add('active');
+        }
+    </script>
+</body>
+</html>
