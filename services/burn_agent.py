@@ -38,6 +38,7 @@ class PrescribedBurnAgent:
             raise ValueError(f"Could not find location: {city}")
         
         return {
+            'source': 'Nominatim (OpenStreetMap)',
             'name': location.address,
             'latitude': location.latitude,
             'longitude': location.longitude
@@ -54,28 +55,84 @@ class PrescribedBurnAgent:
             response.raise_for_status()
             points_data = response.json()
             
-            # Get forecast
+            # Get both regular forecast and hourly forecast for humidity data
             forecast_url = points_data['properties']['forecast']
+            hourly_forecast_url = points_data['properties']['forecastHourly']
+            
             forecast_response = requests.get(forecast_url, headers=headers, timeout=10)
             forecast_response.raise_for_status()
             forecast_data = forecast_response.json()
             
+            # Get hourly forecast for humidity
+            hourly_response = requests.get(hourly_forecast_url, headers=headers, timeout=10)
+            hourly_response.raise_for_status()
+            hourly_data = hourly_response.json()
+            
             periods = forecast_data['properties']['periods'][:3]  # Next 3 periods
+            hourly_periods = hourly_data['properties']['periods']
+            
+            # Normalize period names to Today/Tonight/Tomorrow and get humidity
+            normalized_periods = []
+            for i, p in enumerate(periods):
+                original_name = p['name']
+                
+                # Determine normalized name based on position and original name
+                if i == 0:
+                    # First period - check if it's a night period
+                    if 'night' in original_name.lower():
+                        normalized_name = 'Tonight'
+                    else:
+                        normalized_name = 'Today'
+                elif i == 1:
+                    # Second period - usually the opposite of first (day/night)
+                    if normalized_periods[0]['name'] == 'Today':
+                        normalized_name = 'Tonight'
+                    else:
+                        normalized_name = 'Tomorrow'
+                else:
+                    # Third period
+                    if normalized_periods[1]['name'] == 'Tonight':
+                        normalized_name = 'Tomorrow'
+                    else:
+                        normalized_name = 'Tomorrow Night'
+                
+                # Try to get humidity from the period itself first
+                humidity = None
+                if 'relativeHumidity' in p and p['relativeHumidity']:
+                    if isinstance(p['relativeHumidity'], dict):
+                        humidity = p['relativeHumidity'].get('value')
+                    else:
+                        humidity = p['relativeHumidity']
+                
+                # If not found, try to match with hourly forecast (use corresponding hours)
+                if humidity is None and hourly_periods:
+                    # Use hourly periods that correspond to this forecast period
+                    start_idx = i * 4  # Approximate: each 12-hour period = ~4 hourly periods
+                    for hourly in hourly_periods[start_idx:start_idx + 4]:
+                        if hourly.get('relativeHumidity'):
+                            humidity_data = hourly['relativeHumidity']
+                            if isinstance(humidity_data, dict):
+                                humidity = humidity_data.get('value')
+                            else:
+                                humidity = humidity_data
+                            if humidity is not None:
+                                break
+                
+                normalized_periods.append({
+                    'name': normalized_name,
+                    'original_name': original_name,
+                    'temperature': p['temperature'],
+                    'temperature_unit': p['temperatureUnit'],
+                    'wind_speed': p['windSpeed'],
+                    'wind_direction': p['windDirection'],
+                    'humidity': humidity if humidity is not None else 'N/A',
+                    'short_forecast': p['shortForecast'],
+                    'detailed_forecast': p['detailedForecast']
+                })
             
             return {
-                'forecast': [
-                    {
-                        'name': p['name'],
-                        'temperature': p['temperature'],
-                        'temperature_unit': p['temperatureUnit'],
-                        'wind_speed': p['windSpeed'],
-                        'wind_direction': p['windDirection'],
-                        'humidity': p.get('relativeHumidity', {}).get('value', 'N/A'),
-                        'short_forecast': p['shortForecast'],
-                        'detailed_forecast': p['detailedForecast']
-                    }
-                    for p in periods
-                ]
+                'source': 'National Weather Service (NOAA)',
+                'forecast': normalized_periods
             }
         except Exception as e:
             return {'error': f"Weather data unavailable: {str(e)}"}
@@ -108,6 +165,7 @@ class PrescribedBurnAgent:
             elevation_range = max(elevations) - min(elevations)
             
             return {
+                'source': 'Open-Elevation API (SRTM 2000)',
                 'elevation_meters': elevation,
                 'elevation_feet': round(elevation * 3.28084, 1),
                 'elevation_range_nearby': round(elevation_range, 1),
@@ -162,6 +220,7 @@ class PrescribedBurnAgent:
                         fuel_types[fuel_type] = fuel_types.get(fuel_type, 0) + 1
             
             return {
+                'source': 'OpenStreetMap via Overpass API',
                 'fuel_types_found': fuel_types,
                 'total_areas': len([e for e in data.get('elements', []) if e['type'] == 'way']),
                 'dominant_fuel': max(fuel_types.items(), key=lambda x: x[1])[0] if fuel_types else 'Unknown'
@@ -206,6 +265,7 @@ class PrescribedBurnAgent:
                         water_types[water_type] = water_types.get(water_type, 0) + 1
             
             return {
+                'source': 'OpenStreetMap via Overpass API',
                 'water_bodies': water_types,
                 'fire_hydrants': hydrants,
                 'total_water_sources': len(data.get('elements', []))

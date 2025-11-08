@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Prescribed Burn Project AI Agent</title>
+    <title>FireScope</title>
     <style>
         * {
             margin: 0;
@@ -13,30 +13,89 @@
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #8B7355 0%, #D2B48C 100%);
             min-height: 100vh;
             padding: 20px;
+            transition: all 0.3s ease;
         }
         
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            min-height: calc(100vh - 40px);
+        }
+        
+        .container.centered {
+            justify-content: center;
+        }
+        
+        .results-layout {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 20px;
+            align-items: start;
+        }
+        
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .sidebar {
+            position: sticky;
+            top: 20px;
+        }
+        
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        @media (max-width: 1024px) {
+            .results-layout {
+                grid-template-columns: 1fr;
+            }
+            
+            .sidebar {
+                position: static;
+            }
+            
+            .two-column {
+                grid-template-columns: 1fr;
+            }
         }
         
         .header {
             text-align: center;
             color: white;
             margin-bottom: 30px;
+            transition: all 0.3s ease;
         }
         
         .header h1 {
-            font-size: 2.5em;
-            margin-bottom: 10px;
+            font-size: 4em;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
         }
         
         .header p {
-            font-size: 1.1em;
-            opacity: 0.9;
+            font-size: 1.5em;
+            opacity: 0.95;
+            transition: all 0.3s ease;
+        }
+        
+        .header.compact h1 {
+            font-size: 2em;
+            margin-bottom: 8px;
+        }
+        
+        .header.compact p {
+            font-size: 1em;
         }
         
         .search-box {
@@ -45,6 +104,16 @@
             border-radius: 10px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
             margin-bottom: 30px;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            width: 100%;
+            transition: all 0.3s ease;
+        }
+        
+        .search-box.compact {
+            padding: 20px;
+            margin-bottom: 20px;
         }
         
         .search-form {
@@ -62,22 +131,23 @@
         }
         
         .search-form input:focus {
-            border-color: #667eea;
+            border-color: #D2691E;
         }
         
         .search-form button {
             padding: 15px 40px;
             font-size: 16px;
-            background: #667eea;
+            background: #D2691E;
             color: white;
             border: none;
             border-radius: 5px;
             cursor: pointer;
             font-weight: 600;
+            transition: background 0.3s ease;
         }
         
         .search-form button:hover {
-            background: #5568d3;
+            background: #FF8C00;
         }
         
         .search-form button:disabled {
@@ -117,7 +187,34 @@
             color: #333;
             margin-bottom: 15px;
             padding-bottom: 10px;
-            border-bottom: 2px solid #667eea;
+            border-bottom: 2px solid #D2691E;
+        }
+        
+        .data-source {
+            background: #F5DEB3;
+            padding: 8px 12px;
+            border-radius: 5px;
+            font-size: 0.85em;
+            margin-top: 10px;
+            color: #8B4513;
+        }
+        
+        .data-source strong {
+            color: #333;
+        }
+        
+        .sidebar-card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border-left: 5px solid #FF8C00;
+        }
+        
+        .sidebar-card h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.3em;
         }
         
         .info-grid {
@@ -134,7 +231,7 @@
         }
         
         .info-item strong {
-            color: #667eea;
+            color: #D2691E;
             display: block;
             margin-bottom: 5px;
         }
@@ -147,13 +244,13 @@
         }
         
         .forecast-period h3 {
-            color: #667eea;
+            color: #D2691E;
             margin-bottom: 10px;
         }
         
         .alert {
-            background: #fff3cd;
-            border-left: 4px solid #ffc107;
+            background: #FFF8DC;
+            border-left: 4px solid #FF8C00;
             padding: 15px;
             margin-top: 15px;
             border-radius: 5px;
@@ -174,13 +271,13 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>🔥 Prescribed Burn Project AI Agent</h1>
+    <div class="container centered" id="container">
+        <div class="header" id="header">
+            <h1>🔥 FireScope</h1>
             <p>Gather location-based data for prescribed burn planning</p>
         </div>
         
-        <div class="search-box">
+        <div class="search-box" id="searchBox">
             <form class="search-form" id="searchForm">
                 <input 
                     type="text" 
@@ -197,14 +294,24 @@
             <p>Gathering weather, topography, fuel sources, and water data...</p>
         </div>
         
-        <div class="results" id="results"></div>
+        <div class="results" id="results">
+            <div class="results-layout">
+                <div class="main-content" id="mainContent"></div>
+                <div class="sidebar" id="sidebar"></div>
+            </div>
+        </div>
     </div>
     
     <script>
         const form = document.getElementById('searchForm');
         const loading = document.getElementById('loading');
         const results = document.getElementById('results');
+        const mainContent = document.getElementById('mainContent');
+        const sidebar = document.getElementById('sidebar');
         const submitBtn = document.getElementById('submitBtn');
+        const container = document.getElementById('container');
+        const header = document.getElementById('header');
+        const searchBox = document.getElementById('searchBox');
         
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -213,7 +320,8 @@
             
             loading.classList.add('active');
             results.classList.remove('active');
-            results.innerHTML = '';
+            mainContent.innerHTML = '';
+            sidebar.innerHTML = '';
             submitBtn.disabled = true;
             
             try {
@@ -232,9 +340,19 @@
                 }
                 
                 displayResults(data);
+                
+                // Shrink header and remove centering after first search
+                container.classList.remove('centered');
+                header.classList.add('compact');
+                searchBox.classList.add('compact');
             } catch (error) {
-                results.innerHTML = `<div class="card"><div class="error">Error: ${error.message}</div></div>`;
+                mainContent.innerHTML = `<div class="card"><div class="error">Error: ${error.message}</div></div>`;
                 results.classList.add('active');
+                
+                // Still shrink header even on error
+                container.classList.remove('centered');
+                header.classList.add('compact');
+                searchBox.classList.add('compact');
             } finally {
                 loading.classList.remove('active');
                 submitBtn.disabled = false;
@@ -242,10 +360,13 @@
         });
         
         function displayResults(data) {
-            let html = '';
+            let mainHtml = '';
+            let sidebarHtml = '';
             
-            // Location Info
-            html += `
+            // MAIN CONTENT
+            
+            // 1. Location Info
+            mainHtml += `
                 <div class="card">
                     <h2>📍 Location Information</h2>
                     <div class="info-item">
@@ -259,82 +380,20 @@
                             <strong>Longitude:</strong> ${data.location.longitude.toFixed(4)}
                         </div>
                     </div>
+                    ${data.location.source ? `
+                        <div class="data-source">
+                            <strong>Source:</strong> ${data.location.source}
+                        </div>
+                    ` : ''}
                 </div>
             `;
             
-            // Weather Data
-            if (data.weather && !data.weather.error) {
-                html += `<div class="card"><h2>🌤️ Weather Forecast</h2>`;
-                data.weather.forecast.forEach(period => {
-                    html += `
-                        <div class="forecast-period">
-                            <h3>${period.name}</h3>
-                            <div class="info-grid">
-                                <div class="info-item">
-                                    <strong>Temperature:</strong> ${period.temperature}°${period.temperature_unit}
-                                </div>
-                                <div class="info-item">
-                                    <strong>Wind:</strong> ${period.wind_speed} ${period.wind_direction}
-                                </div>
-                                <div class="info-item">
-                                    <strong>Humidity:</strong> ${period.humidity}${typeof period.humidity === 'number' ? '%' : ''}
-                                </div>
-                            </div>
-                            <p style="margin-top: 10px;"><strong>Forecast:</strong> ${period.detailed_forecast}</p>
-                        </div>
-                    `;
-                });
-                html += `</div>`;
-            } else if (data.weather && data.weather.error) {
-                html += `<div class="card"><h2>🌤️ Weather Forecast</h2><div class="error">${data.weather.error}</div></div>`;
-            }
-            
-            // Topography
-            if (data.topography && !data.topography.error) {
-                html += `
-                    <div class="card">
-                        <h2>⛰️ Topography</h2>
-                        <div class="info-grid">
-                            <div class="info-item">
-                                <strong>Elevation:</strong> ${data.topography.elevation_feet} ft (${data.topography.elevation_meters} m)
-                            </div>
-                            <div class="info-item">
-                                <strong>Terrain:</strong> ${data.topography.terrain_note}
-                            </div>
-                            <div class="info-item">
-                                <strong>Elevation Variation:</strong> ${data.topography.elevation_range_nearby} m nearby
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }
-            
-            // Fuel Sources
-            if (data.fuel_sources && !data.fuel_sources.error) {
-                html += `
-                    <div class="card">
-                        <h2>🌲 Fuel Sources</h2>
-                        <div class="info-item">
-                            <strong>Dominant Fuel Type:</strong> ${data.fuel_sources.dominant_fuel}
-                        </div>
-                        <div class="info-item">
-                            <strong>Total Areas Found:</strong> ${data.fuel_sources.total_areas}
-                        </div>
-                        <div class="info-item">
-                            <strong>Fuel Types:</strong>
-                            <ul style="margin-top: 5px; margin-left: 20px;">
-                                ${Object.entries(data.fuel_sources.fuel_types_found).map(([type, count]) => 
-                                    `<li>${type}: ${count} areas</li>`
-                                ).join('')}
-                            </ul>
-                        </div>
-                    </div>
-                `;
-            }
+            // 2. Water & Fuel Sources (Two Column)
+            mainHtml += '<div class="two-column">';
             
             // Water Sources
             if (data.water_sources && !data.water_sources.error) {
-                html += `
+                mainHtml += `
                     <div class="card">
                         <h2>💧 Water Sources</h2>
                         <div class="info-grid">
@@ -355,17 +414,85 @@
                                 </ul>
                             </div>
                         ` : ''}
+                        ${data.water_sources.source ? `
+                            <div class="data-source">
+                                <strong>Source:</strong> ${data.water_sources.source}
+                            </div>
+                        ` : ''}
                     </div>
                 `;
+            } else if (data.water_sources && data.water_sources.error) {
+                mainHtml += `<div class="card"><h2>💧 Water Sources</h2><div class="error">${data.water_sources.error}</div></div>`;
             }
             
-            // Burn Assessment
+            // Fuel Sources
+            if (data.fuel_sources && !data.fuel_sources.error) {
+                mainHtml += `
+                    <div class="card">
+                        <h2>🌲 Fuel Sources</h2>
+                        <div class="info-item">
+                            <strong>Dominant Fuel Type:</strong> ${data.fuel_sources.dominant_fuel}
+                        </div>
+                        <div class="info-item">
+                            <strong>Total Areas Found:</strong> ${data.fuel_sources.total_areas}
+                        </div>
+                        ${Object.keys(data.fuel_sources.fuel_types_found).length > 0 ? `
+                            <div class="info-item">
+                                <strong>Fuel Types:</strong>
+                                <ul style="margin-top: 5px; margin-left: 20px;">
+                                    ${Object.entries(data.fuel_sources.fuel_types_found).map(([type, count]) => 
+                                        `<li>${type}: ${count} areas</li>`
+                                    ).join('')}
+                                </ul>
+                            </div>
+                        ` : ''}
+                        ${data.fuel_sources.source ? `
+                            <div class="data-source">
+                                <strong>Source:</strong> ${data.fuel_sources.source}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            } else if (data.fuel_sources && data.fuel_sources.error) {
+                mainHtml += `<div class="card"><h2>🌲 Fuel Sources</h2><div class="error">${data.fuel_sources.error}</div></div>`;
+            }
+            
+            mainHtml += '</div>'; // End two-column
+            
+            // 3. Topography
+            if (data.topography && !data.topography.error) {
+                mainHtml += `
+                    <div class="card">
+                        <h2>⛰️ Topography</h2>
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <strong>Elevation:</strong> ${data.topography.elevation_feet} ft (${data.topography.elevation_meters} m)
+                            </div>
+                            <div class="info-item">
+                                <strong>Terrain:</strong> ${data.topography.terrain_note}
+                            </div>
+                            <div class="info-item">
+                                <strong>Elevation Variation:</strong> ${data.topography.elevation_range_nearby} m nearby
+                            </div>
+                        </div>
+                        ${data.topography.source ? `
+                            <div class="data-source">
+                                <strong>Source:</strong> ${data.topography.source}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            } else if (data.topography && data.topography.error) {
+                mainHtml += `<div class="card"><h2>⛰️ Topography</h2><div class="error">${data.topography.error}</div></div>`;
+            }
+            
+            // SIDEBAR - Burn Assessment
             if (data.burn_assessment) {
                 const hasWarnings = data.burn_assessment.concerns && 
                     data.burn_assessment.concerns.some(c => c.includes('risk'));
                 
-                html += `
-                    <div class="card">
+                sidebarHtml = `
+                    <div class="sidebar-card">
                         <h2>⚠️ Burn Condition Assessment</h2>
                         <div class="alert ${hasWarnings ? 'warning' : ''}">
                             <strong>Concerns:</strong>
@@ -380,7 +507,53 @@
                 `;
             }
             
-            results.innerHTML = html;
+            // SIDEBAR - Weather Forecast
+            if (data.weather && !data.weather.error) {
+                sidebarHtml += `
+                    <div class="sidebar-card" style="margin-top: 20px;">
+                        <h2>🌤️ Weather Forecast</h2>
+                `;
+                data.weather.forecast.forEach(period => {
+                    sidebarHtml += `
+                        <div class="forecast-period">
+                            <h3>${period.name}</h3>
+                            <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 10px;">
+                                <div style="flex: 1; min-width: 80px;">
+                                    <strong style="color: #D2691E; font-size: 0.85em;">Temp:</strong><br>
+                                    ${period.temperature}°${period.temperature_unit}
+                                </div>
+                                <div style="flex: 1; min-width: 80px;">
+                                    <strong style="color: #D2691E; font-size: 0.85em;">Wind:</strong><br>
+                                    ${period.wind_speed}
+                                </div>
+                                <div style="flex: 1; min-width: 80px;">
+                                    <strong style="color: #D2691E; font-size: 0.85em;">Humidity:</strong><br>
+                                    ${period.humidity}${typeof period.humidity === 'number' ? '%' : ''}
+                                </div>
+                            </div>
+                            <p style="font-size: 0.85em; color: #666;">${period.detailed_forecast}</p>
+                        </div>
+                    `;
+                });
+                if (data.weather.source) {
+                    sidebarHtml += `
+                        <div class="data-source">
+                            <strong>Source:</strong> ${data.weather.source}
+                        </div>
+                    `;
+                }
+                sidebarHtml += `</div>`;
+            } else if (data.weather && data.weather.error) {
+                sidebarHtml += `
+                    <div class="sidebar-card" style="margin-top: 20px;">
+                        <h2>🌤️ Weather Forecast</h2>
+                        <div class="error">${data.weather.error}</div>
+                    </div>
+                `;
+            }
+            
+            mainContent.innerHTML = mainHtml;
+            sidebar.innerHTML = sidebarHtml;
             results.classList.add('active');
         }
     </script>
